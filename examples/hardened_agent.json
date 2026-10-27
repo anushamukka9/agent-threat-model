@@ -1,0 +1,48 @@
+{
+  "name": "hardened-agent",
+  "description": "An enterprise agent with guarded input, validated output, scoped credentials, per-agent identity, and a kill switch.",
+  "inputs": [
+    {"source": "user", "trusted": false}
+  ],
+  "tools": [
+    {
+      "name": "lookup",
+      "capabilities": ["read"],
+      "requires_approval": true,
+      "sandboxed": true,
+      "authenticated": true
+    },
+    {
+      "name": "writer",
+      "capabilities": ["write", "database"],
+      "requires_approval": true,
+      "sandboxed": true,
+      "authenticated": true
+    }
+  ],
+  "data": [
+    {"name": "product_docs", "sensitivity": "internal", "encrypted": true}
+  ],
+  "memory": {
+    "type": "session",
+    "shared_across_users": false,
+    "writes_from_untrusted_input": false
+  },
+  "outputs": ["user"],
+  "credentials": {"scope": "scoped_short_lived", "stored_in": "vault"},
+  "mcp_servers": [
+    {"name": "docs-mcp", "audited": true, "authenticated": true, "network_exposed": false}
+  ],
+  "agents": {"count": 2, "per_agent_identity": true, "subagents_inherit_credentials": false},
+  "controls": {
+    "input_guard": true,
+    "output_validation": true,
+    "audit_logging": true,
+    "audit_log_redaction": true,
+    "policy_enforcement": true,
+    "human_approval_for_writes": true,
+    "rate_limits": true,
+    "kill_switch": true,
+    "inventory_tracked": true
+  }
+}

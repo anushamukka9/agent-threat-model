@@ -1,0 +1,606 @@
+{
+  "cases": [
+    {
+      "name": "vulnerable-support-bot",
+      "spec": {
+        "name": "support-agent",
+        "description": "A customer support agent with email and web input, a shared knowledge base, and tools that can refund payments.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          },
+          {
+            "source": "email",
+            "trusted": false
+          },
+          {
+            "source": "web",
+            "trusted": false
+          },
+          {
+            "source": "tool_output",
+            "trusted": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "ticket_db",
+            "capabilities": [
+              "read",
+              "write",
+              "database"
+            ],
+            "requires_approval": false,
+            "sandboxed": false,
+            "authenticated": false
+          },
+          {
+            "name": "refund_tool",
+            "capabilities": [
+              "payment",
+              "network"
+            ],
+            "requires_approval": false,
+            "sandboxed": false,
+            "authenticated": true
+          },
+          {
+            "name": "send_email",
+            "capabilities": [
+              "send_message",
+              "network"
+            ],
+            "requires_approval": false,
+            "sandboxed": false,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "customer_records",
+            "sensitivity": "pii",
+            "encrypted": false
+          },
+          {
+            "name": "billing_data",
+            "sensitivity": "confidential",
+            "encrypted": false
+          }
+        ],
+        "memory": {
+          "type": "persistent",
+          "shared_across_users": true,
+          "writes_from_untrusted_input": true
+        },
+        "outputs": [
+          "user",
+          "email",
+          "api_call"
+        ],
+        "credentials": {
+          "scope": "long_lived_broad",
+          "stored_in": "prompt"
+        },
+        "mcp_servers": [
+          {
+            "name": "crm-mcp",
+            "audited": false,
+            "authenticated": false,
+            "network_exposed": true
+          }
+        ],
+        "agents": {
+          "count": 3,
+          "per_agent_identity": false,
+          "subagents_inherit_credentials": true
+        },
+        "controls": {
+          "input_guard": false,
+          "output_validation": false,
+          "audit_logging": false,
+          "audit_log_redaction": false,
+          "policy_enforcement": false,
+          "human_approval_for_writes": false,
+          "rate_limits": false,
+          "kill_switch": false,
+          "inventory_tracked": false
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-001",
+        "ATM-002",
+        "ATM-004",
+        "ATM-005",
+        "ATM-006",
+        "ATM-007",
+        "ATM-008",
+        "ATM-009",
+        "ATM-010",
+        "ATM-011",
+        "ATM-012",
+        "ATM-013",
+        "ATM-015",
+        "ATM-016",
+        "ATM-017",
+        "ATM-018",
+        "ATM-019",
+        "ATM-020",
+        "ATM-022"
+      ]
+    },
+    {
+      "name": "hardened-enterprise-agent",
+      "spec": {
+        "name": "hardened-agent",
+        "description": "An enterprise agent with guarded input, validated output, scoped credentials, per-agent identity, and a kill switch.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "lookup",
+            "capabilities": [
+              "read"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": true
+          },
+          {
+            "name": "writer",
+            "capabilities": [
+              "write",
+              "database"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "product_docs",
+            "sensitivity": "internal",
+            "encrypted": true
+          }
+        ],
+        "memory": {
+          "type": "session",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "user"
+        ],
+        "credentials": {
+          "scope": "scoped_short_lived",
+          "stored_in": "vault"
+        },
+        "mcp_servers": [
+          {
+            "name": "docs-mcp",
+            "audited": true,
+            "authenticated": true,
+            "network_exposed": false
+          }
+        ],
+        "agents": {
+          "count": 2,
+          "per_agent_identity": true,
+          "subagents_inherit_credentials": false
+        },
+        "controls": {
+          "input_guard": true,
+          "output_validation": true,
+          "audit_logging": true,
+          "audit_log_redaction": true,
+          "policy_enforcement": true,
+          "human_approval_for_writes": true,
+          "rate_limits": true,
+          "kill_switch": true,
+          "inventory_tracked": true
+        }
+      },
+      "expected_threat_ids": []
+    },
+    {
+      "name": "coding-agent-unsandboxed",
+      "spec": {
+        "name": "coding-agent",
+        "description": "A coding agent that runs code and edits files.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "shell",
+            "capabilities": [
+              "code_exec",
+              "network"
+            ],
+            "requires_approval": false,
+            "sandboxed": false,
+            "authenticated": true
+          },
+          {
+            "name": "editor",
+            "capabilities": [
+              "read",
+              "write",
+              "file_access"
+            ],
+            "requires_approval": false,
+            "sandboxed": false,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "source_code",
+            "sensitivity": "confidential",
+            "encrypted": false
+          }
+        ],
+        "memory": {
+          "type": "session",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "user",
+          "code_change"
+        ],
+        "credentials": {
+          "scope": "long_lived_broad",
+          "stored_in": "code"
+        },
+        "mcp_servers": [],
+        "agents": {
+          "count": 1,
+          "per_agent_identity": true,
+          "subagents_inherit_credentials": false
+        },
+        "controls": {
+          "input_guard": false,
+          "output_validation": false,
+          "audit_logging": true,
+          "audit_log_redaction": true,
+          "policy_enforcement": false,
+          "human_approval_for_writes": false,
+          "rate_limits": false,
+          "kill_switch": false,
+          "inventory_tracked": false
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-001",
+        "ATM-003",
+        "ATM-004",
+        "ATM-005",
+        "ATM-006",
+        "ATM-015",
+        "ATM-016",
+        "ATM-019",
+        "ATM-020",
+        "ATM-023"
+      ]
+    },
+    {
+      "name": "research-agent-web-rag",
+      "spec": {
+        "name": "research-agent",
+        "description": "A research agent with web browsing and document retrieval.",
+        "inputs": [
+          {
+            "source": "web",
+            "trusted": false
+          },
+          {
+            "source": "documents",
+            "trusted": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "browser",
+            "capabilities": [
+              "read",
+              "network"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "reports",
+            "sensitivity": "confidential",
+            "encrypted": true
+          },
+          {
+            "name": "contacts",
+            "sensitivity": "pii",
+            "encrypted": true
+          }
+        ],
+        "memory": {
+          "type": "none",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "user"
+        ],
+        "credentials": {
+          "scope": "scoped_short_lived",
+          "stored_in": "vault"
+        },
+        "mcp_servers": [],
+        "agents": {
+          "count": 1,
+          "per_agent_identity": true,
+          "subagents_inherit_credentials": false
+        },
+        "controls": {
+          "input_guard": false,
+          "output_validation": false,
+          "audit_logging": true,
+          "audit_log_redaction": true,
+          "policy_enforcement": false,
+          "human_approval_for_writes": false,
+          "rate_limits": true,
+          "kill_switch": true,
+          "inventory_tracked": true
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-001",
+        "ATM-008",
+        "ATM-021"
+      ]
+    },
+    {
+      "name": "data-analyst-agent",
+      "spec": {
+        "name": "data-analyst-agent",
+        "description": "An analyst agent querying a warehouse with personal data.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": true
+          },
+          {
+            "source": "api",
+            "trusted": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "warehouse",
+            "capabilities": [
+              "read",
+              "database"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": false
+          }
+        ],
+        "data": [
+          {
+            "name": "customers",
+            "sensitivity": "pii",
+            "encrypted": true
+          }
+        ],
+        "memory": {
+          "type": "session",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "api_call"
+        ],
+        "credentials": {
+          "scope": "long_lived_narrow",
+          "stored_in": "env"
+        },
+        "mcp_servers": [],
+        "agents": {
+          "count": 1,
+          "per_agent_identity": true,
+          "subagents_inherit_credentials": false
+        },
+        "controls": {
+          "input_guard": true,
+          "output_validation": false,
+          "audit_logging": true,
+          "audit_log_redaction": false,
+          "policy_enforcement": true,
+          "human_approval_for_writes": false,
+          "rate_limits": true,
+          "kill_switch": true,
+          "inventory_tracked": true
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-007",
+        "ATM-014",
+        "ATM-022"
+      ]
+    },
+    {
+      "name": "mcp-heavy-agent",
+      "spec": {
+        "name": "mcp-heavy-agent",
+        "description": "An agent wired to several MCP servers of mixed quality.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          },
+          {
+            "source": "mcp_server",
+            "trusted": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "notes",
+            "capabilities": [
+              "read",
+              "write"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "notes_data",
+            "sensitivity": "internal",
+            "encrypted": true
+          }
+        ],
+        "memory": {
+          "type": "session",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "user"
+        ],
+        "credentials": {
+          "scope": "scoped_short_lived",
+          "stored_in": "vault"
+        },
+        "mcp_servers": [
+          {
+            "name": "notes-mcp",
+            "audited": false,
+            "authenticated": true,
+            "network_exposed": false
+          },
+          {
+            "name": "public-mcp",
+            "audited": true,
+            "authenticated": false,
+            "network_exposed": true
+          }
+        ],
+        "agents": {
+          "count": 1,
+          "per_agent_identity": true,
+          "subagents_inherit_credentials": false
+        },
+        "controls": {
+          "input_guard": true,
+          "output_validation": true,
+          "audit_logging": true,
+          "audit_log_redaction": true,
+          "policy_enforcement": true,
+          "human_approval_for_writes": true,
+          "rate_limits": true,
+          "kill_switch": true,
+          "inventory_tracked": true
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-002",
+        "ATM-011",
+        "ATM-012"
+      ]
+    },
+    {
+      "name": "multi-agent-team",
+      "spec": {
+        "name": "multi-agent-team",
+        "description": "A team of agents delegating work to subagents.",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "planner",
+            "capabilities": [
+              "read"
+            ],
+            "requires_approval": true,
+            "sandboxed": true,
+            "authenticated": true
+          }
+        ],
+        "data": [
+          {
+            "name": "plans",
+            "sensitivity": "internal",
+            "encrypted": true
+          }
+        ],
+        "memory": {
+          "type": "persistent",
+          "shared_across_users": false,
+          "writes_from_untrusted_input": false
+        },
+        "outputs": [
+          "user"
+        ],
+        "credentials": {
+          "scope": "long_lived_narrow",
+          "stored_in": "vault"
+        },
+        "mcp_servers": [],
+        "agents": {
+          "count": 5,
+          "per_agent_identity": false,
+          "subagents_inherit_credentials": true
+        },
+        "controls": {
+          "input_guard": true,
+          "output_validation": true,
+          "audit_logging": true,
+          "audit_log_redaction": true,
+          "policy_enforcement": true,
+          "human_approval_for_writes": true,
+          "rate_limits": true,
+          "kill_switch": true,
+          "inventory_tracked": true
+        }
+      },
+      "expected_threat_ids": [
+        "ATM-017",
+        "ATM-018"
+      ]
+    },
+    {
+      "name": "minimal-chatbot",
+      "spec": {
+        "name": "minimal-chatbot",
+        "inputs": [
+          {
+            "source": "user",
+            "trusted": false
+          }
+        ]
+      },
+      "expected_threat_ids": [
+        "ATM-001",
+        "ATM-013",
+        "ATM-015",
+        "ATM-020"
+      ]
+    }
+  ]
+}
