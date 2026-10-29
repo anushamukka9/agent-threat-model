@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-threat-model"
-version = "0.1.0"
+version = "0.2.0"
 description = "Threat modeling for AI agent apps: describe your agent architecture in a spec, get a STRIDE-style threat model and a zero-trust scorecard."
 readme = "README.md"
 license = { text = "MIT" }

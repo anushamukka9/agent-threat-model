@@ -20,7 +20,7 @@ from agent_threat_model.models import Architecture, SpecError
 from agent_threat_model.report import ThreatModel, build_threat_model
 from agent_threat_model.scorecard import Scorecard, score_architecture
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "RULES",
