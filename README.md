@@ -84,6 +84,16 @@ Three steps, all plain:
    the number is never a mystery. Details in
    [docs/scorecard.md](docs/scorecard.md).
 
+## Threat-model canvas
+
+Prefer pictures over JSON? The canvas in
+[canvas/index.html](canvas/index.html) is the same engine as a
+static web page: answer a guided questionnaire and watch the
+threat model, scorecard, and markdown export build live in your
+browser. It loads the bundled examples, shares a spec through a
+link hash, and needs no server or build step. How it maps to the
+spec and where its limits sit: [docs/canvas.md](docs/canvas.md).
+
 ## The STRIDE summary
 
 | Category | What it asks | Example rule |

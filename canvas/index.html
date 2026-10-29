@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-threat-model canvas - build a threat model in your browser</title>
+<meta name="description" content="Answer a guided questionnaire about your agent and get a live threat model with severity tags, a zero-trust scorecard, and a markdown export.">
+<style>
+  :root {
+    --critical: #b91c1c;
+    --high: #c2410c;
+    --medium: #a16207;
+    --low: #166534;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --panel: #f9fafb;
+    --accent: #1d4ed8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    margin: 0;
+    background: #ffffff;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  header h1 { font-size: 1.7rem; margin: 0 0 0.4rem; }
+  header p { color: var(--muted); margin: 0.2rem 0; max-width: 52rem; }
+  header p strong { color: var(--ink); }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  fieldset {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.8rem 0.9rem 0.9rem; margin: 0 0 0.9rem;
+  }
+  legend { font-weight: 700; padding: 0 0.3rem; }
+  .hint { color: var(--muted); font-size: 0.85rem; margin: 0.2rem 0 0.6rem; }
+  label { font-size: 0.92rem; }
+  label.check { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0.15rem 0.5rem 0.15rem 0; font-weight: 400; }
+  label.block { display: block; font-weight: 600; margin: 0.5rem 0 0.3rem; }
+  input[type="text"], input[type="number"], select, textarea {
+    font: inherit; font-size: 0.92rem;
+    padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 6px;
+  }
+  input[type="text"] { width: 100%; }
+  textarea {
+    width: 100%; min-height: 9rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem; line-height: 1.45; resize: vertical;
+  }
+  .row {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.7rem; margin: 0.5rem 0; background: var(--panel);
+  }
+  .row-head { display: flex; gap: 0.5rem; align-items: center; }
+  .row-head input[type="text"] { flex: 1; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0; }
+  button {
+    font: inherit; font-size: 0.9rem;
+    padding: 0.5rem 0.9rem; border-radius: 6px;
+    border: 1px solid var(--line); background: #ffffff; cursor: pointer;
+  }
+  button:hover { border-color: #9ca3af; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #ffffff; font-weight: 600; }
+  button.primary:hover { background: #1e40af; }
+  button.small { padding: 0.25rem 0.6rem; font-size: 0.82rem; }
+  #status { min-height: 1.4rem; font-size: 0.92rem; margin-bottom: 0.6rem; }
+  #status.error { color: var(--critical); font-weight: 600; }
+  .summary-line { font-weight: 700; margin: 0.3rem 0 0.7rem; }
+  .summary { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .pill {
+    display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px;
+    color: #ffffff; font-size: 0.85rem; font-weight: 600;
+  }
+  .pill.critical { background: var(--critical); }
+  .pill.high { background: var(--high); }
+  .pill.medium { background: var(--medium); }
+  .pill.low { background: var(--low); }
+  .pill.neutral { background: #4b5563; }
+  .dim { margin: 0.55rem 0; }
+  .dim-head { display: flex; justify-content: space-between; font-size: 0.92rem; }
+  .bar { height: 0.55rem; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 0.25rem 0; }
+  .bar-fill { height: 100%; background: var(--accent); }
+  .checks { list-style: none; margin: 0.2rem 0 0; padding: 0; font-size: 0.85rem; color: var(--muted); }
+  .checks li.pass { color: var(--low); }
+  .checks li.fail { color: var(--critical); }
+  .card {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.9rem; margin: 0.75rem 0; border-left: 6px solid var(--line);
+  }
+  .card.critical { border-left-color: var(--critical); }
+  .card.high { border-left-color: var(--high); }
+  .card.medium { border-left-color: var(--medium); }
+  .card.low { border-left-color: var(--low); }
+  .badge {
+    display: inline-block; color: #ffffff; font-weight: 700; font-size: 0.72rem;
+    padding: 0.25rem 0.5rem; border-radius: 4px; text-transform: uppercase; margin-right: 0.4rem;
+  }
+  .badge.critical { background: var(--critical); }
+  .badge.high { background: var(--high); }
+  .badge.medium { background: var(--medium); }
+  .badge.low { background: var(--low); }
+  .card h3 { margin: 0 0 0.3rem; font-size: 1rem; display: inline; }
+  .card p { margin: 0.35rem 0; font-size: 0.92rem; }
+  .meta { color: var(--muted); font-size: 0.83rem; }
+  .evidence {
+    background: var(--panel); border-left: 3px solid #d1d5db;
+    padding: 0.5rem 0.8rem; font-size: 0.88rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .card ul { margin: 0.3rem 0; padding-left: 1.2rem; font-size: 0.92rem; }
+  .clean {
+    border: 1px solid var(--line); border-left: 6px solid var(--low);
+    border-radius: 8px; padding: 1rem; font-weight: 600; color: var(--low);
+  }
+  .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 1rem; }
+  code { background: #f3f4f6; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.85em; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; max-width: 52rem; }
+  footer a, header a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>agent-threat-model canvas</h1>
+    <p><strong>I describe my agent on the left, and the threat model builds itself on the right.</strong>
+    Same 23 rules, same scorecard, and same markdown as the Python engine, running
+    entirely in this page. Nothing leaves your browser.</p>
+    <p>I work from what you tell me. If a control is not in the spec, I treat it as
+    absent. Unknown means absent, so a short spec reads as a risky one.</p>
+  </header>
+
+  <div class="layout">
+    <section aria-label="Guided questionnaire">
+      <div class="buttons">
+        <button id="load-support" type="button">Load support agent example</button>
+        <button id="load-hardened" type="button">Load hardened example</button>
+      </div>
+
+      <fieldset>
+        <legend>Your agent</legend>
+        <label class="block" for="agent-name">Agent name</label>
+        <input type="text" id="agent-name" placeholder="my-agent">
+        <label class="block" for="agent-description">Description</label>
+        <input type="text" id="agent-description" placeholder="What does this agent do?">
+      </fieldset>
+
+      <fieldset>
+        <legend>Inputs</legend>
+        <p class="hint">What reaches the model? Tick Trusted only when you control the content end to end.</p>
+        <div id="inputs-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Tools</legend>
+        <p class="hint">What can the agent call, and how guarded is each tool?</p>
+        <div id="tools-list"></div>
+        <button id="add-tool" class="small" type="button">Add a tool</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Data</legend>
+        <p class="hint">What data can the agent reach?</p>
+        <div id="data-list"></div>
+        <button id="add-data" class="small" type="button">Add data</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Memory</legend>
+        <label class="block" for="memory-type">Memory type</label>
+        <select id="memory-type">
+          <option value="none">none</option>
+          <option value="session">session</option>
+          <option value="persistent">persistent</option>
+        </select>
+        <div>
+          <label class="check"><input type="checkbox" id="memory-shared"> Shared across users</label>
+          <label class="check"><input type="checkbox" id="memory-writes"> Writes come from untrusted input</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Outputs</legend>
+        <p class="hint">Where do answers and actions go?</p>
+        <div id="outputs-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Credentials</legend>
+        <label class="block" for="cred-scope">Credential scope</label>
+        <select id="cred-scope">
+          <option value="none">none</option>
+          <option value="scoped_short_lived">scoped_short_lived</option>
+          <option value="long_lived_narrow">long_lived_narrow</option>
+          <option value="long_lived_broad">long_lived_broad</option>
+        </select>
+        <label class="block" for="cred-stored">Stored in</label>
+        <select id="cred-stored">
+          <option value="vault">vault</option>
+          <option value="env">env</option>
+          <option value="prompt">prompt</option>
+          <option value="code">code</option>
+          <option value="none">none</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend>MCP servers</legend>
+        <div id="mcp-list"></div>
+        <button id="add-mcp" class="small" type="button">Add an MCP server</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Agents</legend>
+        <label class="block" for="agents-count">How many agents?</label>
+        <input type="number" id="agents-count" min="1" step="1" value="1">
+        <div>
+          <label class="check"><input type="checkbox" id="agents-per-agent"> Each agent has its own identity</label>
+          <label class="check"><input type="checkbox" id="agents-inherit"> Subagents inherit credentials</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Controls</legend>
+        <p class="hint">Tick only the controls you actually have. I count the rest as missing.</p>
+        <div id="controls-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Spec JSON</legend>
+        <p class="hint">Copy the spec this questionnaire builds, or paste a spec here and load it.</p>
+        <textarea id="spec-json" spellcheck="false" placeholder="Spec JSON appears here when you copy it. Paste a spec here and use Load spec JSON."></textarea>
+        <div class="buttons">
+          <button id="copy-spec" type="button">Copy spec JSON</button>
+          <button id="load-spec-json" type="button">Load spec JSON</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <section aria-label="Threat model results">
+      <div id="status" role="status" aria-live="polite"></div>
+      <p id="summary-line" class="summary-line"></p>
+      <div id="summary" class="summary"></div>
+      <h2>Scorecard</h2>
+      <div id="scorecard"></div>
+      <h2>Threats</h2>
+      <div class="buttons">
+        <button id="export-markdown" class="primary" type="button">Export to markdown (download)</button>
+        <button id="copy-markdown" type="button">Copy markdown</button>
+        <button id="share-link" type="button">Share link (copy)</button>
+      </div>
+      <div id="results">
+        <p class="empty">No threat model yet. Answer the questionnaire or load an example.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <p>Built on <a href="https://github.com/anushamukka9/agent-threat-model">agent-threat-model</a>,
+    a deterministic threat-model engine with no model calls. A finding is a pointer,
+    not a verdict: read the evidence, check the real system, then decide. The share
+    link carries the spec in the URL hash, so it goes to the person you send it to
+    and to no server.</p>
+  </footer>
+</main>
+
+<script src="engine.js"></script>
+<script>
+"use strict";
+
+var ATM = window.AgentThreatModel;
+
+var SUPPORT_EXAMPLE = {
+  name: "support-agent",
+  description: "A customer support agent with email and web input, a shared knowledge base, and tools that can refund payments.",
+  inputs: [
+    { source: "user", trusted: false },
+    { source: "email", trusted: false },
+    { source: "web", trusted: false },
+    { source: "tool_output", trusted: true }
+  ],
+  tools: [
+    { name: "ticket_db", capabilities: ["read", "write", "database"], requires_approval: false, sandboxed: false, authenticated: false },
+    { name: "refund_tool", capabilities: ["payment", "network"], requires_approval: false, sandboxed: false, authenticated: true },
+    { name: "send_email", capabilities: ["send_message", "network"], requires_approval: false, sandboxed: false, authenticated: true }
+  ],
+  data: [
+    { name: "customer_records", sensitivity: "pii", encrypted: false },
+    { name: "billing_data", sensitivity: "confidential", encrypted: false }
+  ],
+  memory: { type: "persistent", shared_across_users: true, writes_from_untrusted_input: true },
+  outputs: ["user", "email", "api_call"],
+  credentials: { scope: "long_lived_broad", stored_in: "prompt" },
+  mcp_servers: [
+    { name: "crm-mcp", audited: false, authenticated: false, network_exposed: true }
+  ],
+  agents: { count: 3, per_agent_identity: false, subagents_inherit_credentials: true },
+  controls: {
+    input_guard: false, output_validation: false, audit_logging: false,
+    audit_log_redaction: false, policy_enforcement: false,
+    human_approval_for_writes: false, rate_limits: false,
+    kill_switch: false, inventory_tracked: false
+  }
+};
+
+var HARDENED_EXAMPLE = {
+  name: "hardened-agent",
+  description: "An enterprise agent with guarded input, validated output, scoped credentials, per-agent identity, and a kill switch.",
+  inputs: [{ source: "user", trusted: false }],
+  tools: [
+    { name: "lookup", capabilities: ["read"], requires_approval: true, sandboxed: true, authenticated: true },
+    { name: "writer", capabilities: ["write", "database"], requires_approval: true, sandboxed: true, authenticated: true }
+  ],
+  data: [{ name: "product_docs", sensitivity: "internal", encrypted: true }],
+  memory: { type: "session", shared_across_users: false, writes_from_untrusted_input: false },
+  outputs: ["user"],
+  credentials: { scope: "scoped_short_lived", stored_in: "vault" },
+  mcp_servers: [
+    { name: "docs-mcp", audited: true, authenticated: true, network_exposed: false }
+  ],
+  agents: { count: 2, per_agent_identity: true, subagents_inherit_credentials: false },
+  controls: {
+    input_guard: true, output_validation: true, audit_logging: true,
+    audit_log_redaction: true, policy_enforcement: true,
+    human_approval_for_writes: true, rate_limits: true,
+    kill_switch: true, inventory_tracked: true
+  }
+};
+
+var CONTROL_LABELS = [
+  ["input_guard", "Input guard: untrusted input is screened before the model"],
+  ["output_validation", "Output validation: outputs are checked before they leave"],
+  ["audit_logging", "Audit logging: actions are logged"],
+  ["audit_log_redaction", "Audit log redaction: logs are redacted before writing"],
+  ["policy_enforcement", "Policy enforcement: a policy gate sits in front of tool calls"],
+  ["human_approval_for_writes", "Human approval for writes: writes need a human yes"],
+  ["rate_limits", "Rate limits: tool calls and outputs are rate limited"],
+  ["kill_switch", "Kill switch: the agent can be stopped quickly"],
+  ["inventory_tracked", "Inventory tracked: the components are kept in an inventory"]
+];
+
+var statusEl = document.getElementById("status");
+var summaryLineEl = document.getElementById("summary-line");
+var summaryEl = document.getElementById("summary");
+var scorecardEl = document.getElementById("scorecard");
+var resultsEl = document.getElementById("results");
+var specJsonEl = document.getElementById("spec-json");
+var currentModel = null;
+
+function el(tag, className, text) {
+  var node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function checkLabel(text, input) {
+  var label = el("label", "check");
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(" " + text));
+  return label;
+}
+
+function makeCheck(className, checked) {
+  var box = document.createElement("input");
+  box.type = "checkbox";
+  if (className) box.className = className;
+  box.checked = Boolean(checked);
+  return box;
+}
+
+function setStatus(text, isError) {
+  statusEl.textContent = text || "";
+  statusEl.className = isError ? "error" : "";
+}
+
+// Build the static checkbox groups.
+ATM.INPUT_SOURCES.forEach(function (source) {
+  var wrap = el("div", "");
+  var box = makeCheck("input-source", false);
+  box.setAttribute("data-source", source);
+  wrap.appendChild(checkLabel(source, box));
+  var trusted = makeCheck("input-trusted", false);
+  trusted.setAttribute("data-trusted-for", source);
+  var trustedLabel = checkLabel("trusted", trusted);
+  trustedLabel.className = "check input-trusted-wrap";
+  trustedLabel.style.display = "none";
+  wrap.appendChild(trustedLabel);
+  document.getElementById("inputs-list").appendChild(wrap);
+});
+
+ATM.OUTPUT_KINDS.forEach(function (kind) {
+  var box = makeCheck("output-kind", false);
+  box.setAttribute("data-output", kind);
+  document.getElementById("outputs-list").appendChild(checkLabel(kind, box));
+});
+
+CONTROL_LABELS.forEach(function (pair) {
+  var box = makeCheck("control-flag", false);
+  box.setAttribute("data-control", pair[0]);
+  document.getElementById("controls-list").appendChild(checkLabel(pair[1], box));
+});
+
+// Dynamic rows.
+function addToolRow(tool) {
+  tool = tool || { name: "", capabilities: [], requires_approval: false, sandboxed: false, authenticated: false };
+  var row = el("div", "row tool-row");
+  var head = el("div", "row-head");
+  var name = document.createElement("input");
+  name.type = "text";
+  name.className = "tool-name";
+  name.placeholder = "tool name";
+  name.value = tool.name || "";
+  head.appendChild(name);
+  var remove = el("button", "small", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", function () { row.remove(); render(); });
+  head.appendChild(remove);
+  row.appendChild(head);
+  var caps = el("div", "");
+  ATM.CAPABILITIES.forEach(function (cap) {
+    var box = makeCheck("tool-cap", (tool.capabilities || []).indexOf(cap) !== -1);
+    box.setAttribute("data-cap", cap);
+    caps.appendChild(checkLabel(cap, box));
+  });
+  row.appendChild(caps);
+  var toggles = el("div", "");
+  [["requires_approval", "tool-req", "Requires approval"], ["sandboxed", "tool-sand", "Sandboxed"], ["authenticated", "tool-auth", "Authenticated"]].forEach(function (spec) {
+    var box = makeCheck(spec[1], tool[spec[0]]);
+    toggles.appendChild(checkLabel(spec[2], box));
+  });
+  row.appendChild(toggles);
+  document.getElementById("tools-list").appendChild(row);
+  return row;
+}
+
+function addDataRow(item) {
+  item = item || { name: "", sensitivity: "internal", encrypted: false };
+  var row = el("div", "row data-row");
+  var head = el("div", "row-head");
+  var name = document.createElement("input");
+  name.type = "text";
+  name.className = "data-name";
+  name.placeholder = "data name";
+  name.value = item.name || "";
+  head.appendChild(name);
+  var remove = el("button", "small", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", function () { row.remove(); render(); });
+  head.appendChild(remove);
+  row.appendChild(head);
+  var sel = document.createElement("select");
+  sel.className = "data-sensitivity";
+  ATM.SENSITIVITIES.forEach(function (s) {
+    var opt = el("option", "", s);
+    opt.value = s;
+    if (s === item.sensitivity) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  row.appendChild(sel);
+  row.appendChild(checkLabel("Encrypted", makeCheck("data-encrypted", item.encrypted)));
+  document.getElementById("data-list").appendChild(row);
+  return row;
+}
+
+function addMcpRow(server) {
+  server = server || { name: "", audited: false, authenticated: false, network_exposed: false };
+  var row = el("div", "row mcp-row");
+  var head = el("div", "row-head");
+  var name = document.createElement("input");
+  name.type = "text";
+  name.className = "mcp-name";
+  name.placeholder = "server name";
+  name.value = server.name || "";
+  head.appendChild(name);
+  var remove = el("button", "small", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", function () { row.remove(); render(); });
+  head.appendChild(remove);
+  row.appendChild(head);
+  [["audited", "mcp-audited", "Audited"], ["authenticated", "mcp-auth", "Authenticated"], ["network_exposed", "mcp-net", "Network exposed"]].forEach(function (spec) {
+    row.appendChild(checkLabel(spec[2], makeCheck(spec[1], server[spec[0]])));
+  });
+  document.getElementById("mcp-list").appendChild(row);
+  return row;
+}
+
+document.getElementById("add-tool").addEventListener("click", function () { addToolRow(); render(); });
+document.getElementById("add-data").addEventListener("click", function () { addDataRow(); render(); });
+document.getElementById("add-mcp").addEventListener("click", function () { addMcpRow(); render(); });
+
+function gatherSpec() {
+  var inputs = [];
+  document.querySelectorAll(".input-source").forEach(function (box) {
+    if (!box.checked) return;
+    var trusted = document.querySelector('[data-trusted-for="' + box.getAttribute("data-source") + '"]');
+    inputs.push({ source: box.getAttribute("data-source"), trusted: trusted ? trusted.checked : false });
+  });
+  var tools = [];
+  document.querySelectorAll(".tool-row").forEach(function (row) {
+    var name = row.querySelector(".tool-name").value.trim();
+    if (!name) return;
+    var caps = [];
+    row.querySelectorAll(".tool-cap").forEach(function (box) {
+      if (box.checked) caps.push(box.getAttribute("data-cap"));
+    });
+    tools.push({
+      name: name,
+      capabilities: caps,
+      requires_approval: row.querySelector(".tool-req").checked,
+      sandboxed: row.querySelector(".tool-sand").checked,
+      authenticated: row.querySelector(".tool-auth").checked
+    });
+  });
+  var data = [];
+  document.querySelectorAll(".data-row").forEach(function (row) {
+    var name = row.querySelector(".data-name").value.trim();
+    if (!name) return;
+    data.push({
+      name: name,
+      sensitivity: row.querySelector(".data-sensitivity").value,
+      encrypted: row.querySelector(".data-encrypted").checked
+    });
+  });
+  var outputs = [];
+  document.querySelectorAll(".output-kind").forEach(function (box) {
+    if (box.checked) outputs.push(box.getAttribute("data-output"));
+  });
+  var mcpServers = [];
+  document.querySelectorAll(".mcp-row").forEach(function (row) {
+    var name = row.querySelector(".mcp-name").value.trim();
+    if (!name) return;
+    mcpServers.push({
+      name: name,
+      audited: row.querySelector(".mcp-audited").checked,
+      authenticated: row.querySelector(".mcp-auth").checked,
+      network_exposed: row.querySelector(".mcp-net").checked
+    });
+  });
+  var controls = {};
+  document.querySelectorAll(".control-flag").forEach(function (box) {
+    controls[box.getAttribute("data-control")] = box.checked;
+  });
+  var count = parseInt(document.getElementById("agents-count").value, 10);
+  return {
+    name: document.getElementById("agent-name").value.trim(),
+    description: document.getElementById("agent-description").value,
+    inputs: inputs,
+    tools: tools,
+    data: data,
+    memory: {
+      type: document.getElementById("memory-type").value,
+      shared_across_users: document.getElementById("memory-shared").checked,
+      writes_from_untrusted_input: document.getElementById("memory-writes").checked
+    },
+    outputs: outputs,
+    credentials: {
+      scope: document.getElementById("cred-scope").value,
+      stored_in: document.getElementById("cred-stored").value
+    },
+    mcp_servers: mcpServers,
+    agents: {
+      count: isNaN(count) ? 1 : count,
+      per_agent_identity: document.getElementById("agents-per-agent").checked,
+      subagents_inherit_credentials: document.getElementById("agents-inherit").checked
+    },
+    controls: controls
+  };
+}
+
+function setSpec(spec) {
+  var a = ATM.normalizeSpec(spec);
+  document.getElementById("agent-name").value = a.name;
+  document.getElementById("agent-description").value = a.description || "";
+  document.querySelectorAll(".input-source").forEach(function (box) {
+    var match = a.inputs.filter(function (i) { return i.source === box.getAttribute("data-source"); })[0];
+    box.checked = Boolean(match);
+    var trusted = document.querySelector('[data-trusted-for="' + box.getAttribute("data-source") + '"]');
+    if (trusted) trusted.checked = match ? match.trusted : false;
+  });
+  syncTrustedVisibility();
+  document.getElementById("tools-list").textContent = "";
+  a.tools.forEach(addToolRow);
+  document.getElementById("data-list").textContent = "";
+  a.data.forEach(addDataRow);
+  document.getElementById("memory-type").value = a.memory.type;
+  document.getElementById("memory-shared").checked = a.memory.shared_across_users;
+  document.getElementById("memory-writes").checked = a.memory.writes_from_untrusted_input;
+  document.querySelectorAll(".output-kind").forEach(function (box) {
+    box.checked = a.outputs.indexOf(box.getAttribute("data-output")) !== -1;
+  });
+  document.getElementById("cred-scope").value = a.credentials.scope;
+  document.getElementById("cred-stored").value = a.credentials.stored_in;
+  document.getElementById("mcp-list").textContent = "";
+  a.mcp_servers.forEach(addMcpRow);
+  document.getElementById("agents-count").value = a.agents.count;
+  document.getElementById("agents-per-agent").checked = a.agents.per_agent_identity;
+  document.getElementById("agents-inherit").checked = a.agents.subagents_inherit_credentials;
+  document.querySelectorAll(".control-flag").forEach(function (box) {
+    box.checked = Boolean(a.controls[box.getAttribute("data-control")]);
+  });
+}
+
+function syncTrustedVisibility() {
+  document.querySelectorAll(".input-source").forEach(function (box) {
+    var wrap = document.querySelector('[data-trusted-for="' + box.getAttribute("data-source") + '"]');
+    if (wrap) wrap.closest("label").style.display = box.checked ? "" : "none";
+  });
+}
+
+function render() {
+  syncTrustedVisibility();
+  var spec;
+  try {
+    spec = gatherSpec();
+    currentModel = ATM.buildThreatModel(spec);
+  } catch (err) {
+    currentModel = null;
+    summaryLineEl.textContent = "";
+    summaryEl.textContent = "";
+    scorecardEl.textContent = "";
+    resultsEl.textContent = "";
+    resultsEl.appendChild(el("p", "empty", "I cannot build a threat model from this spec yet: " + err.message));
+    setStatus("Spec error: " + err.message, true);
+    return;
+  }
+  setStatus("", false);
+  summaryLineEl.textContent = currentModel.summaryLine();
+  summaryEl.textContent = "";
+  var counts = currentModel.countsBySeverity();
+  ["critical", "high", "medium", "low"].forEach(function (sev) {
+    summaryEl.appendChild(el("span", "pill " + sev, sev + ": " + counts[sev]));
+  });
+  summaryEl.appendChild(el("span", "pill neutral", "overall: " + currentModel.scorecard.overall + "/100"));
+
+  scorecardEl.textContent = "";
+  currentModel.scorecard.dimensions.forEach(function (dim) {
+    var wrap = el("div", "dim");
+    var head = el("div", "dim-head");
+    head.appendChild(el("span", "", dim.name));
+    head.appendChild(el("span", "", dim.score + "/100 (" + dim.grade + ")"));
+    wrap.appendChild(head);
+    var bar = el("div", "bar");
+    var fill = el("div", "bar-fill");
+    fill.style.width = dim.score + "%";
+    bar.appendChild(fill);
+    wrap.appendChild(bar);
+    var list = el("ul", "checks");
+    dim.checks.forEach(function (check) {
+      list.appendChild(el("li", check.passed ? "pass" : "fail",
+        (check.passed ? "Pass: " : "Fail: ") + check.label + " (weight " + check.weight + ")"));
+    });
+    wrap.appendChild(list);
+    scorecardEl.appendChild(wrap);
+  });
+
+  resultsEl.textContent = "";
+  if (!currentModel.threats.length) {
+    resultsEl.appendChild(el("p", "clean", "No threats found for this spec."));
+    return;
+  }
+  currentModel.threats.forEach(function (threat) {
+    var card = el("div", "card " + threat.severity);
+    var head = el("p", "");
+    head.appendChild(el("span", "badge " + threat.severity, threat.severity));
+    var title = el("h3", "", threat.id + ": " + threat.title);
+    head.appendChild(title);
+    card.appendChild(head);
+    card.appendChild(el("p", "meta", "STRIDE: " + threat.stride));
+    card.appendChild(el("p", "evidence", "Evidence: " + threat.evidence));
+    card.appendChild(el("p", "", threat.description));
+    card.appendChild(el("p", "", "Mitigations:"));
+    var mit = el("ul", "");
+    threat.mitigations.forEach(function (m) { mit.appendChild(el("li", "", m)); });
+    card.appendChild(mit);
+    if (threat.companions.length) {
+      card.appendChild(el("p", "", "Companion tools:"));
+      var comp = el("ul", "");
+      threat.companions.forEach(function (c) { comp.appendChild(el("li", "", c.repo + ": " + c.helps)); });
+      card.appendChild(comp);
+    }
+    resultsEl.appendChild(card);
+  });
+}
+
+document.addEventListener("input", render);
+document.addEventListener("change", render);
+
+function copyText(text, okMessage) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      setStatus(okMessage, false);
+    }, function () {
+      window.prompt("Copy this:", text);
+    });
+  } else {
+    window.prompt("Copy this:", text);
+  }
+}
+
+document.getElementById("load-support").addEventListener("click", function () {
+  setSpec(SUPPORT_EXAMPLE);
+  render();
+  setStatus("Support agent example loaded.", false);
+});
+document.getElementById("load-hardened").addEventListener("click", function () {
+  setSpec(HARDENED_EXAMPLE);
+  render();
+  setStatus("Hardened example loaded.", false);
+});
+document.getElementById("copy-spec").addEventListener("click", function () {
+  var text = JSON.stringify(gatherSpec(), null, 2);
+  specJsonEl.value = text;
+  copyText(text, "Spec JSON copied.");
+});
+document.getElementById("load-spec-json").addEventListener("click", function () {
+  try {
+    var parsed = JSON.parse(specJsonEl.value);
+    setSpec(parsed);
+    render();
+    setStatus("Spec loaded from the JSON box.", false);
+  } catch (err) {
+    setStatus("I could not load that spec: " + err.message, true);
+  }
+});
+document.getElementById("export-markdown").addEventListener("click", function () {
+  if (!currentModel) { setStatus("Fix the spec first, then export.", true); return; }
+  var blob = new Blob([currentModel.toMarkdown()], { type: "text/markdown" });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement("a");
+  link.href = url;
+  link.download = (currentModel.architecture_name || "agent") + "-threat-model.md";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Markdown exported.", false);
+});
+document.getElementById("copy-markdown").addEventListener("click", function () {
+  if (!currentModel) { setStatus("Fix the spec first, then copy.", true); return; }
+  copyText(currentModel.toMarkdown(), "Markdown copied.");
+});
+
+// Share links: the spec travels in the URL hash as base64url JSON.
+// Fragments never reach a server.
+function encodeSpec(spec) {
+  var bytes = new TextEncoder().encode(JSON.stringify(spec));
+  var binary = "";
+  bytes.forEach(function (b) { binary += String.fromCharCode(b); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeSpec(encoded) {
+  var base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) base64 += "=";
+  var binary = atob(base64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+document.getElementById("share-link").addEventListener("click", function () {
+  var link = window.location.href.split("#")[0] + "#s=" + encodeSpec(gatherSpec());
+  try { history.replaceState(null, "", link); } catch (err) { /* link still copies */ }
+  copyText(link, "Share link copied. Anyone who opens it sees this spec and its threat model.");
+});
+
+(function init() {
+  var hash = window.location.hash || "";
+  var encoded = null;
+  if (hash.indexOf("#s=") === 0) encoded = hash.slice(3);
+  else if (hash.indexOf("#m=") === 0) encoded = hash.slice(3);
+  if (encoded) {
+    try {
+      setSpec(JSON.parse(decodeSpec(encoded)));
+      render();
+      setStatus("Loaded the spec from this share link.", false);
+      return;
+    } catch (err) {
+      setStatus("That share link did not decode into a spec, so I loaded the support example instead.", true);
+    }
+  }
+  setSpec(SUPPORT_EXAMPLE);
+  render();
+})();
+</script>
+</body>
+</html>
