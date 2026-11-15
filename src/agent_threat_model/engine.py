@@ -36,6 +36,10 @@ class Companion:
     def to_dict(self) -> dict[str, str]:
         return {"repo": self.repo, "helps": self.helps}
 
+    @classmethod
+    def from_dict(cls, data: dict) -> Companion:
+        return cls(repo=str(data["repo"]), helps=str(data["helps"]))
+
 
 @dataclass
 class Threat:
@@ -59,6 +63,19 @@ class Threat:
             "mitigations": list(self.mitigations),
             "companions": [c.to_dict() for c in self.companions],
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Threat:
+        return cls(
+            id=str(data["id"]),
+            title=str(data["title"]),
+            stride=str(data["stride"]),
+            severity=str(data["severity"]),
+            description=str(data["description"]),
+            evidence=str(data["evidence"]),
+            mitigations=[str(m) for m in data.get("mitigations", [])],
+            companions=[Companion.from_dict(c) for c in data.get("companions", [])],
+        )
 
 
 @dataclass

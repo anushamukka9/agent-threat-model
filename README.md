@@ -84,6 +84,25 @@ Three steps, all plain:
    the number is never a mystery. Details in
    [docs/scorecard.md](docs/scorecard.md).
 
+## Export and import
+
+A finished model exports to JSON and imports back with identical
+results. The export carries every threat, the full scorecard, and
+the spec the model was built from:
+
+```bash
+agent-threat-model export my-agent.json --output model.json
+agent-threat-model import model.json
+```
+
+In Python that is `model.to_json()` out and
+`ThreatModel.from_json_file(...)` back in. Import never recomputes
+the model from the spec, and the imported markdown matches the
+original byte for byte. The canvas loads the same JSON through its
+Model JSON box, and models exported in the canvas load here.
+Details in [docs/json-export.md](docs/json-export.md), demo in
+[examples/roundtrip.py](examples/roundtrip.py).
+
 ## Threat-model canvas
 
 Prefer pictures over JSON? The canvas in

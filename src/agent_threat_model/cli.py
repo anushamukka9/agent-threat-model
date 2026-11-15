@@ -6,6 +6,8 @@ Commands:
 - ``agent-threat-model catalog``
 - ``agent-threat-model example [--write PATH]``
 - ``agent-threat-model validate <spec.json>``
+- ``agent-threat-model export <spec.json> [--output MODEL.json]``
+- ``agent-threat-model import <model.json> [--format markdown|json|text] [--fail-on LEVEL]``
 
 Exit codes:
 
@@ -25,7 +27,7 @@ from agent_threat_model import __version__
 from agent_threat_model.engine import RULES, SEVERITY_RANK
 from agent_threat_model.example import EXAMPLE_SPEC
 from agent_threat_model.models import Architecture, SpecError
-from agent_threat_model.report import build_threat_model
+from agent_threat_model.report import ThreatModel, build_threat_model
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
@@ -78,6 +80,51 @@ def cmd_example(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _print_model(model: ThreatModel, fmt: str) -> None:
+    if fmt == "json":
+        print(model.to_json(), end="")
+    elif fmt == "text":
+        print(model.to_text(), end="")
+    else:
+        print(model.to_markdown())
+
+
+def _fail_code(model: ThreatModel, fail_on: str) -> int:
+    threshold = SEVERITY_RANK[fail_on]
+    if any(SEVERITY_RANK[t.severity] <= threshold for t in model.threats):
+        return EXIT_FINDINGS
+    return EXIT_OK
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    try:
+        arch = _load(args.spec)
+    except SpecError as exc:
+        print(f"error: cannot load spec: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    text = build_threat_model(arch).to_json()
+    if args.output:
+        try:
+            Path(args.output).write_text(text, encoding="utf-8")
+        except OSError as exc:
+            print(f"error: cannot write model: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(f"wrote threat model JSON to {args.output}")
+    else:
+        print(text, end="")
+    return EXIT_OK
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    try:
+        model = ThreatModel.from_json_file(args.model)
+    except SpecError as exc:
+        print(f"error: cannot load model: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    _print_model(model, args.format)
+    return _fail_code(model, args.fail_on)
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     try:
         arch = _load(args.spec)
@@ -121,6 +168,24 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate = sub.add_parser("validate", help="check that a spec parses")
     p_validate.add_argument("spec", help="architecture spec JSON file")
     p_validate.set_defaults(func=cmd_validate)
+
+    p_export = sub.add_parser(
+        "export", help="build a threat model from a spec and export it as JSON"
+    )
+    p_export.add_argument("spec", help="architecture spec JSON file")
+    p_export.add_argument("--output", default=None, help="write the model JSON to this path")
+    p_export.set_defaults(func=cmd_export)
+
+    p_import = sub.add_parser("import", help="import an exported threat model JSON and print it")
+    p_import.add_argument("model", help="exported threat model JSON file")
+    p_import.add_argument("--format", choices=["markdown", "json", "text"], default="markdown")
+    p_import.add_argument(
+        "--fail-on",
+        choices=["critical", "high", "medium", "low"],
+        default="high",
+        help="exit 1 when any threat is at or above this severity (default high)",
+    )
+    p_import.set_defaults(func=cmd_import)
 
     return parser
 

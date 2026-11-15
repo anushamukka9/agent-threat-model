@@ -34,6 +34,11 @@ python3 -m http.server 8000
   answers to watch the model move.
 - Copy the spec JSON the questionnaire builds, or paste a spec
   JSON in and load it.
+- Export the finished threat model as JSON (copy or download)
+  from the Model JSON box, and load an exported model back the
+  same way. The loaded model renders the same markdown it was
+  exported with. Python exports load here, and canvas exports
+  load with the Python `import` command.
 - Export the threat model to markdown, as a download or copied
   to the clipboard. The markdown matches what the Python report
   writes, heading, scorecard table, threats table, and all.

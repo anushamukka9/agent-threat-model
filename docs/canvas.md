@@ -42,6 +42,15 @@ off, or absent.
 - **Copy spec JSON** copies the spec the questionnaire built,
   and the spec box also accepts a pasted spec through
   **Load spec JSON**.
+- **Export model JSON** copies the finished model as JSON and
+  fills the Model JSON box, and **Download model JSON** saves it
+  as a file. **Load model JSON** imports an exported model back:
+  the questionnaire is rebuilt from the spec the export carries,
+  and the imported model is what renders, with markdown identical
+  to the model that was exported. Models exported by the Python
+  engine load here, and models exported here load with the Python
+  `import` command. The contract is in
+  [json-export.md](json-export.md).
 - **Share link** encodes the current spec as base64url JSON in
   the URL hash (`#s=...`) and copies the link. On page load, a
   spec in the hash is decoded and loaded. Hash content is not

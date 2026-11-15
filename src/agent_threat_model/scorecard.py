@@ -24,6 +24,14 @@ class Check:
     def to_dict(self) -> dict:
         return {"label": self.label, "passed": self.passed, "weight": self.weight}
 
+    @classmethod
+    def from_dict(cls, data: dict) -> Check:
+        return cls(
+            label=str(data["label"]),
+            passed=bool(data["passed"]),
+            weight=int(data["weight"]),
+        )
+
 
 @dataclass
 class DimensionScore:
@@ -39,6 +47,15 @@ class DimensionScore:
             "grade": self.grade,
             "checks": [c.to_dict() for c in self.checks],
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> DimensionScore:
+        return cls(
+            name=str(data["name"]),
+            score=int(data["score"]),
+            grade=str(data["grade"]),
+            checks=[Check.from_dict(c) for c in data.get("checks", [])],
+        )
 
 
 @dataclass
@@ -57,6 +74,13 @@ class Scorecard:
             "overall": self.overall,
             "dimensions": [d.to_dict() for d in self.dimensions],
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Scorecard:
+        return cls(
+            dimensions=[DimensionScore.from_dict(d) for d in data.get("dimensions", [])],
+            overall=int(data.get("overall", 0)),
+        )
 
 
 def grade_for(score: int) -> str:
