@@ -244,6 +244,17 @@
           <button id="load-spec-json" type="button">Load spec JSON</button>
         </div>
       </fieldset>
+
+      <fieldset>
+        <legend>Model JSON</legend>
+        <p class="hint">Export the finished threat model as JSON, or paste an exported model here and load it back. A loaded model renders the same markdown it was exported with. Models exported by the Python engine load here too, and models exported here load with the Python import command.</p>
+        <textarea id="model-json" spellcheck="false" placeholder="Model JSON appears here when you export it. Paste an exported model here and use Load model JSON."></textarea>
+        <div class="buttons">
+          <button id="export-model-json" type="button">Export model JSON</button>
+          <button id="download-model-json" type="button">Download model JSON</button>
+          <button id="load-model-json" type="button">Load model JSON</button>
+        </div>
+      </fieldset>
     </section>
 
     <section aria-label="Threat model results">
@@ -354,6 +365,7 @@ var summaryEl = document.getElementById("summary");
 var scorecardEl = document.getElementById("scorecard");
 var resultsEl = document.getElementById("results");
 var specJsonEl = document.getElementById("spec-json");
+var modelJsonEl = document.getElementById("model-json");
 var currentModel = null;
 
 function el(tag, className, text) {
@@ -633,6 +645,11 @@ function render() {
     setStatus("Spec error: " + err.message, true);
     return;
   }
+  renderModel(currentModel);
+}
+
+function renderModel(model) {
+  currentModel = model;
   setStatus("", false);
   summaryLineEl.textContent = currentModel.summaryLine();
   summaryEl.textContent = "";
@@ -730,6 +747,35 @@ document.getElementById("load-spec-json").addEventListener("click", function () 
     setStatus("Spec loaded from the JSON box.", false);
   } catch (err) {
     setStatus("I could not load that spec: " + err.message, true);
+  }
+});
+document.getElementById("export-model-json").addEventListener("click", function () {
+  if (!currentModel) { setStatus("Fix the spec first, then export.", true); return; }
+  var text = currentModel.toJson();
+  modelJsonEl.value = text;
+  copyText(text, "Model JSON copied. It loads back here or with the Python import command.");
+});
+document.getElementById("download-model-json").addEventListener("click", function () {
+  if (!currentModel) { setStatus("Fix the spec first, then export.", true); return; }
+  var blob = new Blob([currentModel.toJson()], { type: "application/json" });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement("a");
+  link.href = url;
+  link.download = (currentModel.architecture_name || "agent") + "-threat-model.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Model JSON downloaded.", false);
+});
+document.getElementById("load-model-json").addEventListener("click", function () {
+  try {
+    var imported = ATM.modelFromJson(modelJsonEl.value);
+    if (imported.spec) setSpec(imported.spec);
+    renderModel(imported);
+    setStatus("Model loaded from the JSON box: " + imported.summaryLine(), false);
+  } catch (err) {
+    setStatus("I could not load that model: " + err.message, true);
   }
 });
 document.getElementById("export-markdown").addEventListener("click", function () {

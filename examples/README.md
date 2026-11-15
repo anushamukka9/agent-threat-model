@@ -12,3 +12,7 @@
   API and prints the summary, scorecard, and first threats, then
   checks the hardened example. Run it with
   `python examples/quickstart.py`.
+- `roundtrip.py`: exports the support agent model to JSON, imports
+  it back, and checks the markdown is byte-for-byte identical. Run
+  it with `python examples/roundtrip.py`. See
+  [docs/json-export.md](../docs/json-export.md).

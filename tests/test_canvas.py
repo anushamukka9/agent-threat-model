@@ -78,6 +78,9 @@ def test_index_html_references_engine_and_controls():
     assert 'id="share-link"' in text
     assert "Export to markdown" in text
     assert "Share link" in text
+    assert 'id="export-model-json"' in text
+    assert 'id="load-model-json"' in text
+    assert "Load model JSON" in text
 
 
 def test_no_em_dash_in_canvas_files():

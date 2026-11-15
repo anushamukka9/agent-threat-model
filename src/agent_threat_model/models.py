@@ -78,6 +78,9 @@ class InputSource:
     source: str
     trusted: bool = False
 
+    def to_dict(self) -> dict[str, Any]:
+        return {"source": self.source, "trusted": self.trusted}
+
     @classmethod
     def from_dict(cls, data: Any, where: str = "inputs[]") -> InputSource:
         data = _require_dict(data, where)
@@ -112,6 +115,15 @@ class Tool:
             authenticated=_check_bool(data.get("authenticated", False), f"{where}.authenticated"),
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "capabilities": list(self.capabilities),
+            "requires_approval": self.requires_approval,
+            "sandboxed": self.sandboxed,
+            "authenticated": self.authenticated,
+        }
+
     def has(self, *caps: str) -> bool:
         return any(c in self.capabilities for c in caps)
 
@@ -121,6 +133,13 @@ class DataItem:
     name: str
     sensitivity: str = "internal"
     encrypted: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "sensitivity": self.sensitivity,
+            "encrypted": self.encrypted,
+        }
 
     @classmethod
     def from_dict(cls, data: Any, where: str = "data[]") -> DataItem:
@@ -142,6 +161,13 @@ class Memory:
     type: str = "none"
     shared_across_users: bool = False
     writes_from_untrusted_input: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "type": self.type,
+            "shared_across_users": self.shared_across_users,
+            "writes_from_untrusted_input": self.writes_from_untrusted_input,
+        }
 
     @classmethod
     def from_dict(cls, data: Any, where: str = "memory") -> Memory:
@@ -165,6 +191,9 @@ class Credentials:
     scope: str = "none"
     stored_in: str = "none"
 
+    def to_dict(self) -> dict[str, Any]:
+        return {"scope": self.scope, "stored_in": self.stored_in}
+
     @classmethod
     def from_dict(cls, data: Any, where: str = "credentials") -> Credentials:
         if data is None:
@@ -184,6 +213,14 @@ class McpServer:
     audited: bool = False
     authenticated: bool = False
     network_exposed: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "audited": self.audited,
+            "authenticated": self.authenticated,
+            "network_exposed": self.network_exposed,
+        }
 
     @classmethod
     def from_dict(cls, data: Any, where: str = "mcp_servers[]") -> McpServer:
@@ -207,6 +244,13 @@ class Agents:
     per_agent_identity: bool = False
     subagents_inherit_credentials: bool = False
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "count": self.count,
+            "per_agent_identity": self.per_agent_identity,
+            "subagents_inherit_credentials": self.subagents_inherit_credentials,
+        }
+
     @classmethod
     def from_dict(cls, data: Any, where: str = "agents") -> Agents:
         if data is None:
@@ -227,6 +271,19 @@ class Agents:
         )
 
 
+CONTROL_NAMES = (
+    "input_guard",
+    "output_validation",
+    "audit_logging",
+    "audit_log_redaction",
+    "policy_enforcement",
+    "human_approval_for_writes",
+    "rate_limits",
+    "kill_switch",
+    "inventory_tracked",
+)
+
+
 @dataclass
 class Controls:
     input_guard: bool = False
@@ -238,6 +295,9 @@ class Controls:
     rate_limits: bool = False
     kill_switch: bool = False
     inventory_tracked: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in CONTROL_NAMES}
 
     @classmethod
     def from_dict(cls, data: Any, where: str = "controls") -> Controls:
@@ -327,6 +387,26 @@ class Architecture:
         except OSError as exc:
             raise SpecError(f"cannot read spec file {p}: {exc}") from exc
         return cls.from_json(text)
+
+    def to_dict(self) -> dict[str, Any]:
+        """The canonical spec dict. Feeding it back to from_dict gives
+        an architecture that builds a byte-for-byte identical report."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "inputs": [item.to_dict() for item in self.inputs],
+            "tools": [item.to_dict() for item in self.tools],
+            "data": [item.to_dict() for item in self.data],
+            "memory": self.memory.to_dict(),
+            "outputs": list(self.outputs),
+            "credentials": self.credentials.to_dict(),
+            "mcp_servers": [item.to_dict() for item in self.mcp_servers],
+            "agents": self.agents.to_dict(),
+            "controls": self.controls.to_dict(),
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=2) + "\n"
 
     # Small helpers the engine and scorecard share.
 

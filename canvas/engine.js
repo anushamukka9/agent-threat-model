@@ -877,11 +877,113 @@ function buildThreatModel(input) {
         overall: scorecard.overall,
         dimensions: scorecard.dimensions
       },
-      threats: threats
+      threats: threats,
+      spec: a
     };
   };
   model.to_dict = model.toDict;
+  model.toJson = function () { return JSON.stringify(model.toDict(), null, 2) + "\n"; };
+  model.to_json = model.toJson;
   return model;
+}
+
+// Rebuild a finished model from its JSON export, in the browser or
+// in Node. The imported model keeps the exported threats and
+// scorecard exactly as they were. It is not recomputed from the
+// spec, so a model exported from Python imports as itself, and the
+// other way around. The markdown of an imported model matches the
+// markdown of the model that was exported, byte for byte.
+function modelFromDict(data) {
+  if (data === null || typeof data !== "object" || Array.isArray(data)) {
+    throw specError("model: expected an object, got " + (data === null ? "NoneType" : typeof data));
+  }
+  // A bare spec is not a finished model, but it is a common paste
+  // mistake. Build from it instead of failing, and say so via the
+  // returned model carrying its spec.
+  if (!Array.isArray(data.threats) && data.name && !data.architecture) {
+    return buildThreatModel(data);
+  }
+  var name = data.architecture || data.architecture_name;
+  if (typeof name !== "string" || !name) {
+    throw specError("model.architecture: expected a non-empty string, got " + repr(name));
+  }
+  if (!Array.isArray(data.threats)) {
+    throw specError("model.threats: expected a list");
+  }
+  if (data.scorecard === null || typeof data.scorecard !== "object" ||
+      !Array.isArray(data.scorecard.dimensions)) {
+    throw specError("model.scorecard: expected an object with dimensions");
+  }
+  var threats = data.threats.map(function (t) {
+    return {
+      id: String(t.id),
+      title: String(t.title),
+      stride: String(t.stride),
+      severity: String(t.severity),
+      description: String(t.description),
+      evidence: String(t.evidence),
+      mitigations: (t.mitigations || []).map(function (m) { return String(m); }),
+      companions: (t.companions || []).map(function (c) {
+        return { repo: String(c.repo), helps: String(c.helps) };
+      })
+    };
+  });
+  var scorecard = {
+    overall: Number(data.scorecard.overall) || 0,
+    dimensions: data.scorecard.dimensions.map(function (d) {
+      return {
+        name: String(d.name),
+        score: Number(d.score) || 0,
+        grade: String(d.grade),
+        checks: (d.checks || []).map(function (c) {
+          return { label: String(c.label), passed: Boolean(c.passed), weight: Number(c.weight) || 0 };
+        })
+      };
+    })
+  };
+  var spec = data.spec ? normalizeSpec(data.spec) : null;
+  var model = {
+    architecture_name: name,
+    architectureName: name,
+    architecture: name,
+    spec: spec,
+    threats: threats,
+    scorecard: scorecard
+  };
+  model.countsBySeverity = function () { return countsBySeverity(threats); };
+  model.counts_by_severity = model.countsBySeverity;
+  model.countsByStride = function () { return countsByStride(threats); };
+  model.counts_by_stride = model.countsByStride;
+  model.summaryLine = function () { return summaryLineFor(threats, scorecard); };
+  model.summary_line = model.summaryLine;
+  model.toMarkdown = function () { return modelToMarkdown(model); };
+  model.to_markdown = model.toMarkdown;
+  model.toDict = function () {
+    var out = {
+      architecture: name,
+      summary: model.summaryLine(),
+      counts_by_severity: model.countsBySeverity(),
+      counts_by_stride: model.countsByStride(),
+      scorecard: scorecard,
+      threats: threats
+    };
+    if (spec) out.spec = spec;
+    return out;
+  };
+  model.to_dict = model.toDict;
+  model.toJson = function () { return JSON.stringify(model.toDict(), null, 2) + "\n"; };
+  model.to_json = model.toJson;
+  return model;
+}
+
+function modelFromJson(text) {
+  var data;
+  try {
+    data = JSON.parse(text);
+  } catch (err) {
+    throw specError("model is not valid JSON: " + err.message);
+  }
+  return modelFromDict(data);
 }
 
 function toMarkdown(input) {
@@ -922,6 +1024,11 @@ var api = {
   grade_for: gradeFor,
   buildThreatModel: buildThreatModel,
   build_threat_model: buildThreatModel,
+  modelFromDict: modelFromDict,
+  model_from_dict: modelFromDict,
+  threatModelFromDict: modelFromDict,
+  modelFromJson: modelFromJson,
+  model_from_json: modelFromJson,
   toMarkdown: toMarkdown,
   summaryLine: summaryLine
 };
